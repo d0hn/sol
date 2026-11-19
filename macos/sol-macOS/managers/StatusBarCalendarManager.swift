@@ -19,6 +19,28 @@ struct UpcomingEventFilter {
   var calendarIds: [String]? = nil
   var excludeKeywords: [String] = []
   var requireMeetingLink = false
+
+  // Shared by the menu bar item and meeting reminders
+  func allows(_ event: EKEvent) -> Bool {
+    if event.isAllDay { return false }
+
+    let lowercasedTitle = (event.title ?? "").lowercased()
+    if excludeKeywords.contains(where: { lowercasedTitle.contains($0) }) {
+      return false
+    }
+
+    if requireMeetingLink && meetingLink(for: event) == nil { return false }
+
+    // Skip declined events
+    if event.hasAttendees {
+      let declined = event.attendees?.contains { participant in
+        participant.isCurrentUser && participant.participantStatus == .declined
+      } ?? false
+      if declined { return false }
+    }
+
+    return true
+  }
 }
 
 class StatusBarCalendarManager {
@@ -96,25 +118,8 @@ class StatusBarCalendarManager {
       var upcomingEventLink: String?
 
       for event in events {
-        guard let ekEvent = event as? EKEvent else { continue }
-
-        if ekEvent.isAllDay { continue }
-
-        let lowercasedTitle = (ekEvent.title ?? "").lowercased()
-        if filter.excludeKeywords.contains(where: { lowercasedTitle.contains($0) }) {
-          continue
-        }
-
-        let link = Self.meetingLink(for: ekEvent)
-        if filter.requireMeetingLink && link == nil { continue }
-
-        // Skip declined events
-        if ekEvent.hasAttendees {
-          let declined = ekEvent.attendees?.contains { participant in
-            participant.isCurrentUser && participant.participantStatus == .declined
-          } ?? false
-          if declined { continue }
-        }
+        guard let ekEvent = event as? EKEvent, filter.allows(ekEvent) else { continue }
+        let link = meetingLink(for: ekEvent)
 
         let isOngoing = now >= ekEvent.startDate && now <= ekEvent.endDate
         if isOngoing {
@@ -158,32 +163,32 @@ class StatusBarCalendarManager {
       }
     }
   }
+}
 
-  // Mirrors extractMeetingLink in src/lib/calendar.ts, plus the event's own URL
-  private static func meetingLink(for event: EKEvent) -> String? {
-    if let url = event.url?.absoluteString, !url.isEmpty {
-      return url
-    }
-
-    if let location = event.location, isWebURL(location) {
-      return location
-    }
-
-    guard let notes = event.notes else { return nil }
-    let tokens = notes
-      .replacingOccurrences(of: "<", with: " ")
-      .replacingOccurrences(of: ">", with: " ")
-      .components(separatedBy: .whitespacesAndNewlines)
-    return tokens.first { token in
-      isWebURL(token) && meetingProviderURLs.contains { token.contains($0) }
-    }
+// Mirrors extractMeetingLink in src/lib/calendar.ts, plus the event's own URL
+func meetingLink(for event: EKEvent) -> String? {
+  if let url = event.url?.absoluteString, !url.isEmpty {
+    return url
   }
 
-  private static func isWebURL(_ text: String) -> Bool {
-    guard let url = URL(string: text.trimmingCharacters(in: .whitespaces)),
-      let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
-      url.host != nil
-    else { return false }
-    return true
+  if let location = event.location, isWebURL(location) {
+    return location
   }
+
+  guard let notes = event.notes else { return nil }
+  let tokens = notes
+    .replacingOccurrences(of: "<", with: " ")
+    .replacingOccurrences(of: ">", with: " ")
+    .components(separatedBy: .whitespacesAndNewlines)
+  return tokens.first { token in
+    isWebURL(token) && meetingProviderURLs.contains { token.contains($0) }
+  }
+}
+
+private func isWebURL(_ text: String) -> Bool {
+  guard let url = URL(string: text.trimmingCharacters(in: .whitespaces)),
+    let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+    url.host != nil
+  else { return false }
+  return true
 }

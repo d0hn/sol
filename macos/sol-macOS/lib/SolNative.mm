@@ -111,5 +111,7 @@ RCT_EXTERN_METHOD(openFilePicker : (RCTPromiseResolveBlock)
 RCT_EXTERN_METHOD(updateHotkeys : (NSDictionary)hotkeys)
 RCT_EXTERN_METHOD(setUpcomingEventEnabled : (BOOL)enabled)
 RCT_EXTERN_METHOD(setUpcomingEventFilter : (NSDictionary)filter)
+RCT_EXTERN_METHOD(setMeetingReminderConfig : (NSDictionary)config)
+RCT_EXTERN_METHOD(showTestMeetingReminder)
 RCT_EXTERN_METHOD(setHyperKeyEnabled : (BOOL)v)
 @end
