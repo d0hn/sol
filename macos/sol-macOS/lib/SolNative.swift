@@ -450,6 +450,25 @@ class SolNative: RCTEventEmitter {
     StatusBarCalendarManager.shared.enabled = enabled
   }
 
+  @objc func setMeetingReminderConfig(_ config: NSDictionary) {
+    var newConfig = MeetingReminderConfig()
+    newConfig.enabled = (config["enabled"] as? Bool) ?? false
+    newConfig.thresholds = Array(
+      Set(((config["thresholds"] as? [NSNumber]) ?? []).map { $0.intValue }.filter { $0 > 0 })
+    ).sorted()
+    newConfig.delivery =
+      MeetingReminderConfig.Delivery(rawValue: (config["delivery"] as? String) ?? "") ?? .overlay
+    newConfig.theme = (config["theme"] as? String) ?? newConfig.theme
+    newConfig.position = (config["position"] as? String) ?? newConfig.position
+    newConfig.size = (config["size"] as? String) ?? newConfig.size
+    newConfig.sound = (config["sound"] as? String) ?? newConfig.sound
+    MeetingReminderManager.shared.config = newConfig
+  }
+
+  @objc func showTestMeetingReminder() {
+    MeetingReminderManager.shared.showTestReminder()
+  }
+
   @objc func setUpcomingEventFilter(_ filter: NSDictionary) {
     var newFilter = UpcomingEventFilter()
     newFilter.calendarIds = filter["calendarIds"] as? [String]

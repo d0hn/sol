@@ -108,6 +108,8 @@ class SolNative extends NativeEventEmitter {
 	createFolderWatcher: typeof global.__SolProxy.createFolderWatcher;
 	focusDate: (dateISO: string) => void;
 	setUpcomingEventEnabled: (enabled: boolean) => void;
+	setMeetingReminderConfig: (config: MeetingReminderConfig) => void;
+	showTestMeetingReminder: () => void;
 	setUpcomingEventFilter: (filter: {
 		calendarIds: string[] | null;
 		excludeKeywords: string[];
@@ -242,6 +244,8 @@ class SolNative extends NativeEventEmitter {
 		this.focusDate = global.__SolProxy.focusDate;
 		this.setUpcomingEventEnabled = module.setUpcomingEventEnabled;
 		this.setUpcomingEventFilter = module.setUpcomingEventFilter;
+		this.setMeetingReminderConfig = module.setMeetingReminderConfig;
+		this.showTestMeetingReminder = module.showTestMeetingReminder;
 	}
 }
 

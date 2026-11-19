@@ -44,6 +44,24 @@ type CalendarAuthorizationStatus =
 	| "denied"
 	| "authorized";
 
+type MeetingReminderConfig = {
+	enabled: boolean;
+	// Minutes before the event start
+	thresholds: number[];
+	delivery: "overlay" | "system";
+	theme: "system" | "blue" | "purple" | "orange" | "red" | "green";
+	position:
+		| "topLeft"
+		| "topCenter"
+		| "topRight"
+		| "center"
+		| "bottomLeft"
+		| "bottomRight";
+	size: "compact" | "large";
+	// macOS alert sound name, or "none"
+	sound: string;
+};
+
 declare const global: {
 	__SolProxy: {
 		setHeight: (height: number) => void;

@@ -13,6 +13,17 @@ let onShowListener: EmitterSubscription | undefined;
 let onStatusBarItemClickListener: EmitterSubscription | undefined;
 let persistDisposer: (() => void) | undefined;
 let menuBarFilterDisposer: (() => void) | undefined;
+let meetingReminderDisposer: (() => void) | undefined;
+
+const DEFAULT_MEETING_REMINDERS: MeetingReminderConfig = {
+	enabled: false,
+	thresholds: [5],
+	delivery: "overlay",
+	theme: "system",
+	position: "topRight",
+	size: "compact",
+	sound: "Glass",
+};
 
 export type CalendarStore = ReturnType<typeof createCalendarStore>;
 
@@ -25,6 +36,7 @@ export const createCalendarStore = (root: IRootStore) => {
 				menuBarCalendarIds: toJS(store.menuBarCalendarIds),
 				menuBarExcludeKeywords: toJS(store.menuBarExcludeKeywords),
 				menuBarRequireMeetingLink: store.menuBarRequireMeetingLink,
+				meetingReminders: toJS(store.meetingReminders),
 			});
 		} catch (error) {
 			captureException(error);
@@ -38,6 +50,7 @@ export const createCalendarStore = (root: IRootStore) => {
 			menuBarCalendarIds?: string[] | null;
 			menuBarExcludeKeywords?: string[];
 			menuBarRequireMeetingLink?: boolean;
+			meetingReminders?: Partial<MeetingReminderConfig>;
 		}>("calendar");
 
 		if (!persistedState) {
@@ -53,6 +66,10 @@ export const createCalendarStore = (root: IRootStore) => {
 				persistedState.menuBarExcludeKeywords ?? [];
 			store.menuBarRequireMeetingLink =
 				persistedState.menuBarRequireMeetingLink ?? false;
+			store.meetingReminders = {
+				...DEFAULT_MEETING_REMINDERS,
+				...persistedState.meetingReminders,
+			};
 		});
 	};
 
@@ -73,6 +90,7 @@ export const createCalendarStore = (root: IRootStore) => {
 		menuBarCalendarIds: null as string[] | null,
 		menuBarExcludeKeywords: [] as string[],
 		menuBarRequireMeetingLink: false,
+		meetingReminders: DEFAULT_MEETING_REMINDERS,
 
 		//    _____                            _           _
 		//   / ____|                          | |         | |
@@ -299,11 +317,33 @@ export const createCalendarStore = (root: IRootStore) => {
 		setMenuBarRequireMeetingLink: (value: boolean) => {
 			store.menuBarRequireMeetingLink = value;
 		},
+		setMeetingReminderOption: <K extends keyof MeetingReminderConfig>(
+			key: K,
+			value: MeetingReminderConfig[K],
+		) => {
+			store.meetingReminders = { ...store.meetingReminders, [key]: value };
+		},
+		// Accepts "5, 10, 15"; ignores anything that isn't a whole number of minutes
+		setMeetingReminderThresholds: (text: string) => {
+			const thresholds = [
+				...new Set(
+					text
+						.split(",")
+						.map((part) => Number.parseInt(part.trim(), 10))
+						.filter((minutes) => Number.isInteger(minutes) && minutes > 0),
+				),
+			].sort((a, b) => a - b);
+			store.meetingReminders = { ...store.meetingReminders, thresholds };
+		},
+		showTestMeetingReminder: () => {
+			solNative.showTestMeetingReminder();
+		},
 		cleanUp: () => {
 			onShowListener?.remove();
 			onStatusBarItemClickListener?.remove();
 			persistDisposer?.();
 			menuBarFilterDisposer?.();
+			meetingReminderDisposer?.();
 		},
 		onShow: () => {
 			store.getCalendarAccess();
@@ -332,6 +372,10 @@ export const createCalendarStore = (root: IRootStore) => {
 					excludeKeywords: toJS(store.menuBarExcludeKeywords),
 					requireMeetingLink: store.menuBarRequireMeetingLink,
 				});
+			});
+			meetingReminderDisposer?.();
+			meetingReminderDisposer = autorun(() => {
+				solNative.setMeetingReminderConfig(toJS(store.meetingReminders));
 			});
 			store.getCalendarAccess();
 			await store.fetchCalendars();
